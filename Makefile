@@ -7,7 +7,12 @@ os = $(word 1, $@)
 .PHONY: $(PLATFORMS)
 $(PLATFORMS):
 		mkdir -p bin
-		GO111MODULE=on GOOS=$(os) GOARCH=amd64 go build -o ./bin/$(BINARY)-$(os)-amd64 -v ./cmd/injector/main.go
+		GOOS=$(os) GOARCH=amd64 go build -o ./bin/$(BINARY)-$(os)-amd64 -v ./cmd/injector/main.go
+
+# Runs all of the tests
+.PHONY: test
+test:
+		go test -v ./...
 
 # Builds a docker image
 .PHONY: image
