@@ -14,7 +14,7 @@ type Server struct {
 // ServerOptions represent server configuration
 type ServerOptions func(s *Server)
 
-// WithPort sets a port a Server is going to listen
+// WithPort sets a TCP port a Server will be listen on
 func WithPort(port int) ServerOptions {
 	return func(s *Server) {
 		s.server.Addr = fmt.Sprintf(":%v", port)

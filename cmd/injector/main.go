@@ -1,10 +1,15 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	"github.com/noahsnative/voltron/internal/injector"
+)
+
+var (
+	port = flag.Int("port", 8080, "TCP port to listen on.")
 )
 
 func main() {
@@ -14,6 +19,9 @@ func main() {
 }
 
 func run() error {
-	server := injector.New(injector.WithPort(8080))
+	flag.Parse()
+
+	server := injector.New(injector.WithPort(*port))
+
 	return server.Run()
 }
