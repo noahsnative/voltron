@@ -46,7 +46,7 @@ func (s *Server) Run() error {
 	return s.server.ListenAndServe()
 }
 
-// ServerHTTP handles an HTTP rqeuest
+// ServerHTTP handles an HTTP request
 func (s *Server) ServerHTTP(w http.ResponseWriter, r *http.Request) {
 	s.server.Handler.ServeHTTP(w, r)
 }
