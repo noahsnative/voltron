@@ -22,6 +22,10 @@ func TestHandleMutate(t *testing.T) {
 			ExpectedStatusCode int
 		}{
 			{http.MethodGet, http.StatusMethodNotAllowed},
+			{http.MethodHead, http.StatusMethodNotAllowed},
+			{http.MethodPut, http.StatusMethodNotAllowed},
+			{http.MethodDelete, http.StatusMethodNotAllowed},
+			{http.MethodOptions, http.StatusMethodNotAllowed},
 			{http.MethodPost, http.StatusOK},
 		}
 
