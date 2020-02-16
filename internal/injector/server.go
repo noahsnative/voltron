@@ -27,6 +27,11 @@ func New(opts ...ServerOptions) *Server {
 		server: &http.Server{},
 	}
 
+	mux := http.NewServeMux()
+	mux.HandleFunc("/mutate", server.handleMutate)
+
+	server.server.Handler = mux
+
 	for _, opt := range opts {
 		opt(&server)
 	}
@@ -37,4 +42,17 @@ func New(opts ...ServerOptions) *Server {
 // Run starts listening for incoming HTTP requests
 func (s *Server) Run() error {
 	return s.server.ListenAndServe()
+}
+
+// ServerHTTP handles an HTTP rqeuest
+func (s *Server) ServerHTTP(w http.ResponseWriter, r *http.Request) {
+	s.server.Handler.ServeHTTP(w, r)
+}
+
+func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 }
