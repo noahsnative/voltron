@@ -2,6 +2,7 @@ package injector
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -41,6 +42,7 @@ func New(opts ...ServerOptions) *Server {
 
 // Run starts listening for incoming HTTP requests
 func (s *Server) Run() error {
+	fmt.Printf("Listening on %s\n", s.server.Addr)
 	return s.server.ListenAndServe()
 }
 
@@ -51,8 +53,8 @@ func (s *Server) ServerHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		log.Printf("Invalid method %s, only POST requests are allowed", r.Method)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-
 }
