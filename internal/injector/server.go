@@ -2,14 +2,19 @@ package injector
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+
+	"k8s.io/api/admission/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
 // Server represents a mutating webhook HTTP server
 type Server struct {
-	server *http.Server
-	port   string
+	server  *http.Server
+	decoder runtime.Decoder
 }
 
 // ServerOptions represent server configuration
@@ -25,7 +30,8 @@ func WithPort(port int) ServerOptions {
 // New creates a Server instance with provided options
 func New(opts ...ServerOptions) *Server {
 	server := Server{
-		server: &http.Server{},
+		server:  &http.Server{},
+		decoder: serializer.NewCodecFactory(runtime.NewScheme()).UniversalDeserializer(),
 	}
 
 	mux := http.NewServeMux()
@@ -57,4 +63,25 @@ func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Could not read the request body: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var admissionReviewRequest v1beta1.AdmissionReview
+	if _, _, err := s.decoder.Decode(body, nil, &admissionReviewRequest); err != nil {
+		log.Printf("Could not parse the request body: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if admissionReviewRequest.Request == nil {
+		log.Print("Mailformed admission review: request is nil")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 }
