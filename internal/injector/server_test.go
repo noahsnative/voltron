@@ -43,7 +43,7 @@ var (
 
 func TestWithPort(t *testing.T) {
 	t.Run("Should set the server address", func(t *testing.T) {
-		sut := New(WithPort(8080))
+		sut := New(&MockAdmitter{}, WithPort(8080))
 		assert.Equal(t, ":8080", sut.server.Addr)
 	})
 }
@@ -63,7 +63,7 @@ func TestHandleMutate(t *testing.T) {
 		}
 
 		for _, c := range cases {
-			sut := New()
+			sut := New(&MockAdmitter{})
 
 			request := httptest.NewRequest(c.Method, "/mutate", strings.NewReader(validAdmissionReview))
 			recorder := httptest.NewRecorder()
@@ -86,7 +86,7 @@ func TestHandleMutate(t *testing.T) {
 
 		for _, c := range cases {
 			t.Run(c.Summary, func(t *testing.T) {
-				sut := New()
+				sut := New(&MockAdmitter{})
 
 				request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(c.RequestBody))
 				recorder := httptest.NewRecorder()

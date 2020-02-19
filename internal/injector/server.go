@@ -13,8 +13,9 @@ import (
 
 // Server represents a mutating webhook HTTP server
 type Server struct {
-	server  *http.Server
-	decoder runtime.Decoder
+	server   *http.Server
+	decoder  runtime.Decoder
+	admitter Admitter
 }
 
 // ServerOptions represent server configuration
@@ -28,10 +29,11 @@ func WithPort(port int) ServerOptions {
 }
 
 // New creates a Server instance with provided options
-func New(opts ...ServerOptions) *Server {
+func New(admitter Admitter, opts ...ServerOptions) *Server {
 	server := Server{
-		server:  &http.Server{},
-		decoder: serializer.NewCodecFactory(runtime.NewScheme()).UniversalDeserializer(),
+		server:   &http.Server{},
+		decoder:  serializer.NewCodecFactory(runtime.NewScheme()).UniversalDeserializer(),
+		admitter: admitter,
 	}
 
 	mux := http.NewServeMux()
