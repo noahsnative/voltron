@@ -30,7 +30,7 @@ jobs:
         run: pwd
 
       - name: Poorman Debugging2
-        run: tree
+        run: ls
         
       - name: Build test image
         run: docker build . --file cmd/injector/deploy/Dockerfile.test --tag unittest
