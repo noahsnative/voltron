@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/noahsnative/voltron/internal/injector/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,7 +44,7 @@ var (
 
 func TestWithPort(t *testing.T) {
 	t.Run("Should set the server address", func(t *testing.T) {
-		sut := New(&MockAdmitter{}, WithPort(8080))
+		sut := New(&mocks.Admitter{}, WithPort(8080))
 		assert.Equal(t, ":8080", sut.server.Addr)
 	})
 }
@@ -63,7 +64,7 @@ func TestHandleMutate(t *testing.T) {
 		}
 
 		for _, c := range cases {
-			sut := New(&MockAdmitter{})
+			sut := New(&mocks.Admitter{})
 
 			request := httptest.NewRequest(c.Method, "/mutate", strings.NewReader(validAdmissionReview))
 			recorder := httptest.NewRecorder()
@@ -86,7 +87,7 @@ func TestHandleMutate(t *testing.T) {
 
 		for _, c := range cases {
 			t.Run(c.Summary, func(t *testing.T) {
-				sut := New(&MockAdmitter{})
+				sut := New(&mocks.Admitter{})
 
 				request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(c.RequestBody))
 				recorder := httptest.NewRecorder()
