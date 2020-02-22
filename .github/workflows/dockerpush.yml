@@ -31,6 +31,9 @@ jobs:
 
       - name: Poorman Debugging2
         run: ls
+
+      - name: Poorman Debugging3
+        run: cat /home/runner/work/voltron/voltron/cmd/injector/deploy/Dockerfile.test
         
       - name: Build test image
         run: docker build . --file /home/runner/work/voltron/voltron/cmd/injector/deploy/Dockerfile.test --tag unittest
