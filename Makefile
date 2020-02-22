@@ -14,6 +14,8 @@ $(PLATFORMS):
 test:
 		go test -v ./...
 
+# asdsa
+
 # Builds a docker image
 .PHONY: image
 image:
