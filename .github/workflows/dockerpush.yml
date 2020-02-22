@@ -30,7 +30,7 @@ jobs:
         run: pwd
 
       - name: Poorman Debugging2
-        run: ls cmd
+        run: ls cmd/injector
 
       - name: Poorman Debugging3
         run: cat /home/runner/work/voltron/voltron/cmd/injector/deploy/Dockerfile.test
