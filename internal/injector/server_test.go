@@ -94,7 +94,7 @@ func TestHandleMutate(t *testing.T) {
 
 				sut.ServerHTTP(recorder, request)
 
-				assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
+				assert.Equal(t, http.StatusAccepted, recorder.Result().StatusCode)
 			})
 		}
 	})
