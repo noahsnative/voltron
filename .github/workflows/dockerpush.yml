@@ -25,18 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
-      - name: Poorman Debugging
-        run: pwd
-
-      - name: Poorman Debugging2
-        run: ls cmd/injector
-
-      - name: Poorman Debugging3
-        run: cat /home/runner/work/voltron/voltron/cmd/injector/deploy/Dockerfile.test
         
       - name: Build test image
-        run: docker build . --file /home/runner/work/voltron/voltron/cmd/injector/deploy/Dockerfile.test --tag unittest
+        run: docker build . --file cmd/injector/deploy/Dockerfile.unittest --tag unittest
       
       - name: Run unit test container
         run: docker run unittest
