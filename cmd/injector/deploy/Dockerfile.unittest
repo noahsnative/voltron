@@ -1,0 +1,6 @@
+FROM bigrocs/golang-gcc:1.13
+
+RUN apk add --update git make
+
+WORKDIR /go/src/github.com/noahsnative/voltron
+CMD make test
