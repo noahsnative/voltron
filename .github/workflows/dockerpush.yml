@@ -20,9 +20,22 @@ env:
 jobs:
   # Push image to GitHub Package Registry.
   # See also https://docs.docker.com/docker-hub/builds/
+  unit-test:
+    
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build test image
+        run: docker build . --file cmd/injector/deploy/Dockerfile.test --tag unittest
+      
+      - name: Run unit test container
+        run: docker run unittest
+
+
   push:
     # Ensure test job passes before pushing image.
-    # needs: test
+    needs: unit-test
 
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
