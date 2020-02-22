@@ -33,7 +33,7 @@ jobs:
         run: ls
         
       - name: Build test image
-        run: docker build . --file cmd/injector/deploy/Dockerfile.test --tag unittest
+        run: docker build . --file /home/runner/work/voltron/voltron/cmd/injector/deploy/Dockerfile.test --tag unittest
       
       - name: Run unit test container
         run: docker run unittest
