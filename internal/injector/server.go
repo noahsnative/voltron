@@ -97,11 +97,11 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) (int, error) {
 	admissionReview.Response = &admissionResponse
 	bytes, err := json.Marshal(admissionReview)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("Could not marshall the response body: %v", err)
+		return http.StatusInternalServerError, fmt.Errorf("could not marshall the response body: %v", err)
 	}
 
 	if _, err = w.Write(bytes); err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("Could not write the response body: %v", err)
+		return http.StatusInternalServerError, fmt.Errorf("could not write the response body: %v", err)
 	}
 
 	return http.StatusOK, nil
