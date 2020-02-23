@@ -86,4 +86,5 @@ func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.admitter.Admit(*admissionReviewRequest.Request)
 }

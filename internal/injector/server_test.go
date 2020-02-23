@@ -8,6 +8,8 @@ import (
 
 	"github.com/noahsnative/voltron/internal/injector/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"k8s.io/api/admission/v1beta1"
 )
 
 var (
@@ -64,7 +66,9 @@ func TestHandleMutate(t *testing.T) {
 		}
 
 		for _, c := range cases {
-			sut := New(&mocks.Admitter{})
+			admitterStub := &mocks.Admitter{}
+			admitterStub.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
+			sut := New(admitterStub)
 
 			request := httptest.NewRequest(c.Method, "/mutate", strings.NewReader(validAdmissionReview))
 			recorder := httptest.NewRecorder()
@@ -97,5 +101,18 @@ func TestHandleMutate(t *testing.T) {
 				assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
 			})
 		}
+	})
+
+	t.Run("Shoudl call admitter if valid request body", func(t *testing.T) {
+		admitterMock := &mocks.Admitter{}
+		admitterMock.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
+		sut := New(admitterMock)
+
+		request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
+		recorder := httptest.NewRecorder()
+
+		sut.ServerHTTP(recorder, request)
+
+		admitterMock.AssertNumberOfCalls(t, "Admit", 1)
 	})
 }
