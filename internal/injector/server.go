@@ -9,6 +9,7 @@ import (
 	"k8s.io/api/admission/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 // Server represents a mutating webhook HTTP server
@@ -73,18 +74,37 @@ func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var admissionReviewRequest v1beta1.AdmissionReview
-	if _, _, err := s.decoder.Decode(body, nil, &admissionReviewRequest); err != nil {
+	var admissionReview v1beta1.AdmissionReview
+	if err := json.Unmarshal(body, &admissionReview); err != nil {
 		log.Printf("Could not parse the request body: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if admissionReviewRequest.Request == nil {
+	if admissionReview.Request == nil {
 		log.Print("Mailformed admission review: request is nil")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	s.admitter.Admit(*admissionReviewRequest.Request)
+	admissionResponse, err := s.admitter.Admit(*admissionReview.Request)
+	if err != nil {
+		log.Printf("Could not admit the requested resource: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	admissionReview.Response = &admissionResponse
+	bytes, err := json.Marshal(admissionReview)
+	if err != nil {
+		log.Printf("Could not marshall the response body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err = w.Write(bytes); err != nil {
+		log.Printf("Could not write the response body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
