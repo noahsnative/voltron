@@ -48,7 +48,7 @@ var (
 
 func TestWithPort(t *testing.T) {
 	t.Run("Should set the server address", func(t *testing.T) {
-		sut := New(&mocks.Admitter{}, WithPort(8080))
+		sut := NewServer(&mocks.Admitter{}, WithPort(8080))
 		assert.Equal(t, ":8080", sut.server.Addr)
 	})
 }
@@ -70,7 +70,7 @@ func TestHandleMutate(t *testing.T) {
 		for _, c := range cases {
 			admitterStub := &mocks.Admitter{}
 			admitterStub.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
-			sut := New(admitterStub)
+			sut := NewServer(admitterStub)
 
 			request := httptest.NewRequest(c.Method, "/mutate", strings.NewReader(validAdmissionReview))
 			recorder := httptest.NewRecorder()
@@ -93,7 +93,7 @@ func TestHandleMutate(t *testing.T) {
 
 		for _, c := range cases {
 			t.Run(c.Summary, func(t *testing.T) {
-				sut := New(&mocks.Admitter{})
+				sut := NewServer(&mocks.Admitter{})
 
 				request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(c.RequestBody))
 				recorder := httptest.NewRecorder()
@@ -108,7 +108,7 @@ func TestHandleMutate(t *testing.T) {
 	t.Run("Should call admitter if valid request body", func(t *testing.T) {
 		admitterMock := &mocks.Admitter{}
 		admitterMock.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
-		sut := New(admitterMock)
+		sut := NewServer(admitterMock)
 
 		request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
 		recorder := httptest.NewRecorder()
@@ -123,7 +123,7 @@ func TestHandleMutate(t *testing.T) {
 		admitterMock.
 			On("Admit", mock.Anything).
 			Return(v1beta1.AdmissionResponse{}, errors.New("admission failed"))
-		sut := New(admitterMock)
+		sut := NewServer(admitterMock)
 
 		request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
 		recorder := httptest.NewRecorder()
@@ -139,7 +139,7 @@ func TestHandleMutate(t *testing.T) {
 		admitterMock.
 			On("Admit", mock.Anything).
 			Return(admissionResponse, nil)
-		sut := New(admitterMock)
+		sut := NewServer(admitterMock)
 
 		request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
 		recorder := httptest.NewRecorder()

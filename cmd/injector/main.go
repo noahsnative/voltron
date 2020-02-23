@@ -20,6 +20,7 @@ func main() {
 
 func run() error {
 	flag.Parse()
-	server := injector.New(nil, injector.WithPort(*port))
+	admitter := injector.NewAdmitter()
+	server := injector.NewServer(admitter, injector.WithPort(*port))
 	return server.Run()
 }

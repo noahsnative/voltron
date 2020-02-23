@@ -29,8 +29,8 @@ func WithPort(port int) ServerOptions {
 	}
 }
 
-// New creates a Server instance with provided options
-func New(admitter Admitter, opts ...ServerOptions) *Server {
+// NewServer creates a Server instance with provided options
+func NewServer(admitter Admitter, opts ...ServerOptions) *Server {
 	server := Server{
 		server:   &http.Server{},
 		decoder:  serializer.NewCodecFactory(runtime.NewScheme()).UniversalDeserializer(),
