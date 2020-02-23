@@ -53,103 +53,101 @@ func TestWithPort(t *testing.T) {
 	})
 }
 
-func TestHandleMutate(t *testing.T) {
-	t.Run("Should only allow POST requests", func(t *testing.T) {
-		cases := []struct {
-			Method             string
-			ExpectedStatusCode int
-		}{
-			{http.MethodGet, http.StatusMethodNotAllowed},
-			{http.MethodHead, http.StatusMethodNotAllowed},
-			{http.MethodPut, http.StatusMethodNotAllowed},
-			{http.MethodDelete, http.StatusMethodNotAllowed},
-			{http.MethodOptions, http.StatusMethodNotAllowed},
-			{http.MethodPost, http.StatusOK},
-		}
+func TestFailIfNonPostRequest(t *testing.T) {
+	cases := []struct {
+		Method             string
+		ExpectedStatusCode int
+	}{
+		{http.MethodGet, http.StatusMethodNotAllowed},
+		{http.MethodHead, http.StatusMethodNotAllowed},
+		{http.MethodPut, http.StatusMethodNotAllowed},
+		{http.MethodDelete, http.StatusMethodNotAllowed},
+		{http.MethodOptions, http.StatusMethodNotAllowed},
+		{http.MethodPost, http.StatusOK},
+	}
 
-		for _, c := range cases {
-			admitterStub := &mocks.Admitter{}
-			admitterStub.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
-			sut := NewServer(admitterStub)
+	for _, c := range cases {
+		admitterStub := &mocks.Admitter{}
+		admitterStub.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
+		sut := NewServer(admitterStub)
 
-			request := httptest.NewRequest(c.Method, "/mutate", strings.NewReader(validAdmissionReview))
+		request := httptest.NewRequest(c.Method, "/mutate", strings.NewReader(validAdmissionReview))
+		recorder := httptest.NewRecorder()
+
+		sut.ServerHTTP(recorder, request)
+
+		assert.Equal(t, c.ExpectedStatusCode, recorder.Result().StatusCode)
+	}
+}
+
+func TestFailIfInvalidRequestBody(t *testing.T) {
+	cases := []struct {
+		Summary     string
+		RequestBody string
+	}{
+		{Summary: "Empty", RequestBody: ""},
+		{Summary: "Plain text", RequestBody: "not a JSON"},
+		{Summary: "Not an admission review", RequestBody: `{"foo":"bar"}`},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Summary, func(t *testing.T) {
+			sut := NewServer(&mocks.Admitter{})
+
+			request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(c.RequestBody))
 			recorder := httptest.NewRecorder()
 
 			sut.ServerHTTP(recorder, request)
 
-			assert.Equal(t, c.ExpectedStatusCode, recorder.Result().StatusCode)
-		}
-	})
+			assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
+		})
+	}
+}
 
-	t.Run("Should return BadRequest if invalid request body", func(t *testing.T) {
-		cases := []struct {
-			Summary     string
-			RequestBody string
-		}{
-			{Summary: "Empty", RequestBody: ""},
-			{Summary: "Plain text", RequestBody: "not a JSON"},
-			{Summary: "Not an admission review", RequestBody: `{"foo":"bar"}`},
-		}
+func TestCallAdmitterIfValidRequestBody(t *testing.T) {
+	admitterMock := &mocks.Admitter{}
+	admitterMock.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
+	sut := NewServer(admitterMock)
 
-		for _, c := range cases {
-			t.Run(c.Summary, func(t *testing.T) {
-				sut := NewServer(&mocks.Admitter{})
+	request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
+	recorder := httptest.NewRecorder()
 
-				request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(c.RequestBody))
-				recorder := httptest.NewRecorder()
+	sut.ServerHTTP(recorder, request)
 
-				sut.ServerHTTP(recorder, request)
+	admitterMock.AssertNumberOfCalls(t, "Admit", 1)
+}
 
-				assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
-			})
-		}
-	})
+func TestFailIfAdmitterFails(t *testing.T) {
+	admitterMock := &mocks.Admitter{}
+	admitterMock.
+		On("Admit", mock.Anything).
+		Return(v1beta1.AdmissionResponse{}, errors.New("admission failed"))
+	sut := NewServer(admitterMock)
 
-	t.Run("Should call admitter if valid request body", func(t *testing.T) {
-		admitterMock := &mocks.Admitter{}
-		admitterMock.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
-		sut := NewServer(admitterMock)
+	request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
+	recorder := httptest.NewRecorder()
 
-		request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
-		recorder := httptest.NewRecorder()
+	sut.ServerHTTP(recorder, request)
 
-		sut.ServerHTTP(recorder, request)
+	assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
+}
 
-		admitterMock.AssertNumberOfCalls(t, "Admit", 1)
-	})
+func TestSucceedIfAdmitterSucceeds(t *testing.T) {
+	admitterMock := &mocks.Admitter{}
+	var admissionResponse v1beta1.AdmissionResponse
+	admitterMock.
+		On("Admit", mock.Anything).
+		Return(admissionResponse, nil)
+	sut := NewServer(admitterMock)
 
-	t.Run("Should return BadRequest if admitter fails", func(t *testing.T) {
-		admitterMock := &mocks.Admitter{}
-		admitterMock.
-			On("Admit", mock.Anything).
-			Return(v1beta1.AdmissionResponse{}, errors.New("admission failed"))
-		sut := NewServer(admitterMock)
+	request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
+	recorder := httptest.NewRecorder()
 
-		request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
-		recorder := httptest.NewRecorder()
+	sut.ServerHTTP(recorder, request)
 
-		sut.ServerHTTP(recorder, request)
+	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
 
-		assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
-	})
-
-	t.Run("Should return admission review if admitter succeeds", func(t *testing.T) {
-		admitterMock := &mocks.Admitter{}
-		var admissionResponse v1beta1.AdmissionResponse
-		admitterMock.
-			On("Admit", mock.Anything).
-			Return(admissionResponse, nil)
-		sut := NewServer(admitterMock)
-
-		request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
-		recorder := httptest.NewRecorder()
-
-		sut.ServerHTTP(recorder, request)
-
-		assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
-
-		var actual v1beta1.AdmissionReview
-		assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &actual))
-		assert.True(t, assert.ObjectsAreEqual(admissionResponse, *actual.Response))
-	})
+	var actual v1beta1.AdmissionReview
+	assert.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &actual))
+	assert.True(t, assert.ObjectsAreEqual(admissionResponse, *actual.Response))
 }

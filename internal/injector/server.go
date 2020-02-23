@@ -8,7 +8,6 @@ import (
 
 	"k8s.io/api/admission/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
@@ -33,7 +32,6 @@ func WithPort(port int) ServerOptions {
 func NewServer(admitter Admitter, opts ...ServerOptions) *Server {
 	server := Server{
 		server:   &http.Server{},
-		decoder:  serializer.NewCodecFactory(runtime.NewScheme()).UniversalDeserializer(),
 		admitter: admitter,
 	}
 
