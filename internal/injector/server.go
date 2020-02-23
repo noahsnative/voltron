@@ -61,50 +61,48 @@ func (s *Server) ServerHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
+	if code, err := s.mutate(w, r); err == nil {
+		log.Print("Successfully handled a webhook request")
+	} else {
+		log.Printf("Could not handle a webhook request: %v", err)
+		w.WriteHeader(code)
+		w.Write([]byte(err.Error()))
+	}
+}
+
+func (s *Server) mutate(w http.ResponseWriter, r *http.Request) (int, error) {
 	if r.Method != http.MethodPost {
-		log.Printf("Invalid method %s, only POST requests are allowed", r.Method)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+		return http.StatusMethodNotAllowed, fmt.Errorf("invalid method %s, only POST requests are allowed", r.Method)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Could not read the request body: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return http.StatusBadRequest, fmt.Errorf("could not read the request body: %v", err)
 	}
 
 	var admissionReview v1beta1.AdmissionReview
 	if err := json.Unmarshal(body, &admissionReview); err != nil {
-		log.Printf("Could not parse the request body: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return http.StatusBadRequest, fmt.Errorf("could not parse the request body: %v", err)
 	}
 
 	if admissionReview.Request == nil {
-		log.Print("Mailformed admission review: request is nil")
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return http.StatusBadRequest, fmt.Errorf("mailformed admission review: request is nil")
 	}
 
 	admissionResponse, err := s.admitter.Admit(*admissionReview.Request)
 	if err != nil {
-		log.Printf("Could not admit the requested resource: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return http.StatusBadRequest, fmt.Errorf("could not admit the requested resource: %v", err)
 	}
 
 	admissionReview.Response = &admissionResponse
 	bytes, err := json.Marshal(admissionReview)
 	if err != nil {
-		log.Printf("Could not marshall the response body: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return http.StatusInternalServerError, fmt.Errorf("Could not marshall the response body: %v", err)
 	}
 
 	if _, err = w.Write(bytes); err != nil {
-		log.Printf("Could not write the response body: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return http.StatusInternalServerError, fmt.Errorf("Could not write the response body: %v", err)
 	}
+
+	return http.StatusOK, nil
 }
