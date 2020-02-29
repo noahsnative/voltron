@@ -23,11 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install tools
-        run: make install-tools
-
       - name: Lint
-        run: make lint
+        run: make install-tools & make lint
 
   # Push image to GitHub Package Registry.
   # See also https://docs.docker.com/docker-hub/builds/
