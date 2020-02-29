@@ -15,6 +15,6 @@ test:
 		go test -v ./...
 
 # Builds a docker image
-.PHONY: image
-image:
+.PHONY: docker
+docker:
 		docker build -t voltron/injector:latest .
