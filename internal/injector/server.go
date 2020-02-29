@@ -7,14 +7,12 @@ import (
 	"net/http"
 
 	"k8s.io/api/admission/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
 // Server represents a mutating webhook HTTP server
 type Server struct {
 	server   *http.Server
-	decoder  runtime.Decoder
 	admitter Admitter
 }
 
@@ -64,7 +62,9 @@ func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("Could not handle a webhook request: %v", err)
 		w.WriteHeader(code)
-		w.Write([]byte(err.Error()))
+		if _, err = w.Write([]byte(err.Error())); err != nil {
+			log.Print("Could not write the error response body")
+		}
 	}
 }
 
