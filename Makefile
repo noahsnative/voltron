@@ -17,7 +17,7 @@ $(PLATFORMS):
 # Runs static code analysis. Make sure you run install-tools before first use
 .PHONY: lint
 lint:
-		golangci-lint run ./...
+		./bin/golangci-lint run ./...
 
 # Runs all of the tests
 .PHONY: test
