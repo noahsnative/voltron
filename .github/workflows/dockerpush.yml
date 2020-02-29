@@ -18,6 +18,17 @@ env:
   IMAGE_NAME: voltron-injector
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install tools
+        run: make install-tools
+
+      - name: Lint
+        run: make lint
+
   # Push image to GitHub Package Registry.
   # See also https://docs.docker.com/docker-hub/builds/
   unit-test:
