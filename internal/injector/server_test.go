@@ -118,11 +118,11 @@ func TestCallAdmitterIfValidRequestBody(t *testing.T) {
 }
 
 func TestFailIfAdmitterFails(t *testing.T) {
-	admitterMock := &mocks.Admitter{}
-	admitterMock.
+	admitterStub := &mocks.Admitter{}
+	admitterStub.
 		On("Admit", mock.Anything).
 		Return(v1beta1.AdmissionResponse{}, errors.New("admission failed"))
-	sut := NewServer(admitterMock)
+	sut := NewServer(admitterStub)
 
 	request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
 	recorder := httptest.NewRecorder()
@@ -133,12 +133,12 @@ func TestFailIfAdmitterFails(t *testing.T) {
 }
 
 func TestSucceedIfAdmitterSucceeds(t *testing.T) {
-	admitterMock := &mocks.Admitter{}
+	admitterStub := &mocks.Admitter{}
 	var admissionResponse v1beta1.AdmissionResponse
-	admitterMock.
+	admitterStub.
 		On("Admit", mock.Anything).
 		Return(admissionResponse, nil)
-	sut := NewServer(admitterMock)
+	sut := NewServer(admitterStub)
 
 	request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
 	recorder := httptest.NewRecorder()
