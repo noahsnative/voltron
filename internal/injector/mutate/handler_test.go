@@ -47,7 +47,7 @@ var (
 )
 
 func TestFailIfNonPostRequest(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		Method             string
 		ExpectedStatusCode int
 	}{
@@ -59,17 +59,17 @@ func TestFailIfNonPostRequest(t *testing.T) {
 		{http.MethodPost, http.StatusOK},
 	}
 
-	for _, c := range cases {
+	for _, test := range tests {
 		admitterStub := &mocks.Admitter{}
 		admitterStub.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
 		sut := Handler{admitter: admitterStub}
 
-		request := httptest.NewRequest(c.Method, "/mutate", strings.NewReader(validAdmissionReview))
+		request := httptest.NewRequest(test.Method, "/mutate", strings.NewReader(validAdmissionReview))
 		recorder := httptest.NewRecorder()
 
 		sut.Mutate(recorder, request)
 
-		assert.Equal(t, c.ExpectedStatusCode, recorder.Result().StatusCode)
+		assert.Equal(t, test.ExpectedStatusCode, recorder.Result().StatusCode)
 	}
 }
 
