@@ -3,6 +3,7 @@ package mutate
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -32,18 +33,19 @@ func (h *Handler) Mutate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) mutate(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *Handler) mutate(w io.Writer, r *http.Request) (int, error) {
 	if r.Method != http.MethodPost {
 		return http.StatusMethodNotAllowed, fmt.Errorf("invalid method %s, only POST requests are allowed", r.Method)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("could not read the request body: %v", err)
 	}
 
 	var admissionReview v1beta1.AdmissionReview
-	if err := json.Unmarshal(body, &admissionReview); err != nil {
+	if err = json.Unmarshal(body, &admissionReview); err != nil {
 		return http.StatusBadRequest, fmt.Errorf("could not parse the request body: %v", err)
 	}
 
