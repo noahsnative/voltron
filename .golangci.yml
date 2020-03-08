@@ -109,6 +109,7 @@ issues:
     - path: _test\.go
       linters:
         - gomnd
+        - bodyclose
 
 run:
   skip-dirs:

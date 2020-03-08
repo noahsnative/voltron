@@ -74,7 +74,7 @@ func TestFailIfNonPostRequest(t *testing.T) {
 }
 
 func TestFailIfInvalidRequestBody(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		Summary     string
 		RequestBody string
 	}{
@@ -83,11 +83,12 @@ func TestFailIfInvalidRequestBody(t *testing.T) {
 		{Summary: "Not an admission review", RequestBody: `{"foo":"bar"}`},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Summary, func(t *testing.T) {
+	for _, test := range tests {
+		test := test
+		t.Run(test.Summary, func(t *testing.T) {
 			sut := Handler{admitter: &mocks.Admitter{}}
 
-			request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(c.RequestBody))
+			request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(test.RequestBody))
 			recorder := httptest.NewRecorder()
 
 			sut.Mutate(recorder, request)

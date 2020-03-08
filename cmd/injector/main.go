@@ -26,7 +26,7 @@ func run() error {
 	mux := http.NewServeMux()
 	handler := mutate.New()
 	mux.HandleFunc("/mutate", handler.Mutate)
-	server := server.New(mux, server.WithPort(*port))
+	s := server.New(mux, server.WithPort(*port))
 	fmt.Printf("Listening on %d\n", port)
-	return server.ListenAndServe()
+	return s.ListenAndServe()
 }
