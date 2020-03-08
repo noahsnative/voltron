@@ -1,63 +1,27 @@
-package injector
+package mutate
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 
 	"k8s.io/api/admission/v1beta1"
-	"k8s.io/apimachinery/pkg/util/json"
 )
 
-// Server represents a mutating webhook HTTP server
-type Server struct {
-	server   *http.Server
+type Handler struct {
 	admitter Admitter
 }
 
-// ServerOptions represent server configuration
-type ServerOptions func(s *Server)
-
-// WithPort sets a TCP port a Server will be listen on
-func WithPort(port int) ServerOptions {
-	return func(s *Server) {
-		s.server.Addr = fmt.Sprintf(":%v", port)
+func New() *Handler {
+	return &Handler{
+		admitter: noOpAdmitter{},
 	}
 }
 
-// NewServer creates a Server instance with provided options
-func NewServer(admitter Admitter, opts ...ServerOptions) *Server {
-	server := Server{
-		server:   &http.Server{},
-		admitter: admitter,
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/mutate", server.handleMutate)
-
-	server.server.Handler = mux
-
-	for _, opt := range opts {
-		opt(&server)
-	}
-
-	return &server
-}
-
-// Run starts listening for incoming HTTP requests
-func (s *Server) Run() error {
-	fmt.Printf("Listening on %s\n", s.server.Addr)
-	return s.server.ListenAndServe()
-}
-
-// ServerHTTP handles an HTTP request
-func (s *Server) ServerHTTP(w http.ResponseWriter, r *http.Request) {
-	s.server.Handler.ServeHTTP(w, r)
-}
-
-func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
-	if code, err := s.mutate(w, r); err == nil {
+func (h *Handler) Mutate(w http.ResponseWriter, r *http.Request) {
+	if code, err := h.mutate(w, r); err == nil {
 		log.Print("Successfully handled a webhook request")
 	} else {
 		log.Printf("Could not handle a webhook request: %v", err)
@@ -68,7 +32,7 @@ func (s *Server) handleMutate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) mutate(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *Handler) mutate(w http.ResponseWriter, r *http.Request) (int, error) {
 	if r.Method != http.MethodPost {
 		return http.StatusMethodNotAllowed, fmt.Errorf("invalid method %s, only POST requests are allowed", r.Method)
 	}
@@ -87,7 +51,7 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusBadRequest, fmt.Errorf("mailformed admission review: request is nil")
 	}
 
-	admissionResponse, err := s.admitter.Admit(*admissionReview.Request)
+	admissionResponse, err := h.admitter.Admit(*admissionReview.Request)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("could not admit the requested resource: %v", err)
 	}

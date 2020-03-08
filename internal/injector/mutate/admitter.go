@@ -1,4 +1,4 @@
-package injector
+package mutate
 
 import "k8s.io/api/admission/v1beta1"
 

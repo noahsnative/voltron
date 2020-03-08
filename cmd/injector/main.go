@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 
-	"github.com/noahsnative/voltron/internal/injector"
+	"github.com/noahsnative/voltron/internal/injector/mutate"
+	"github.com/noahsnative/voltron/internal/injector/server"
 )
 
 var (
@@ -13,14 +15,18 @@ var (
 )
 
 func main() {
+	flag.Parse()
+
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
 }
 
 func run() error {
-	flag.Parse()
-	admitter := injector.NewAdmitter()
-	server := injector.NewServer(admitter, injector.WithPort(*port))
-	return server.Run()
+	mux := http.NewServeMux()
+	handler := mutate.New()
+	mux.HandleFunc("/mutate", handler.Mutate)
+	server := server.New(mux, server.WithPort(*port))
+	fmt.Printf("Listening on %d\n", port)
+	return server.ListenAndServe()
 }

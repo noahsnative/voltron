@@ -1,4 +1,4 @@
-package injector
+package mutate
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/noahsnative/voltron/internal/injector/mocks"
+	"github.com/noahsnative/voltron/internal/injector/mutate/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/api/admission/v1beta1"
@@ -46,13 +46,6 @@ var (
 	}`
 )
 
-func TestWithPort(t *testing.T) {
-	t.Run("Should set the server address", func(t *testing.T) {
-		sut := NewServer(&mocks.Admitter{}, WithPort(8080))
-		assert.Equal(t, ":8080", sut.server.Addr)
-	})
-}
-
 func TestFailIfNonPostRequest(t *testing.T) {
 	cases := []struct {
 		Method             string
@@ -69,12 +62,12 @@ func TestFailIfNonPostRequest(t *testing.T) {
 	for _, c := range cases {
 		admitterStub := &mocks.Admitter{}
 		admitterStub.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
-		sut := NewServer(admitterStub)
+		sut := Handler{admitter: admitterStub}
 
 		request := httptest.NewRequest(c.Method, "/mutate", strings.NewReader(validAdmissionReview))
 		recorder := httptest.NewRecorder()
 
-		sut.ServerHTTP(recorder, request)
+		sut.Mutate(recorder, request)
 
 		assert.Equal(t, c.ExpectedStatusCode, recorder.Result().StatusCode)
 	}
@@ -92,12 +85,12 @@ func TestFailIfInvalidRequestBody(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Summary, func(t *testing.T) {
-			sut := NewServer(&mocks.Admitter{})
+			sut := Handler{admitter: &mocks.Admitter{}}
 
 			request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(c.RequestBody))
 			recorder := httptest.NewRecorder()
 
-			sut.ServerHTTP(recorder, request)
+			sut.Mutate(recorder, request)
 
 			assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
 		})
@@ -107,12 +100,12 @@ func TestFailIfInvalidRequestBody(t *testing.T) {
 func TestCallAdmitterIfValidRequestBody(t *testing.T) {
 	admitterMock := &mocks.Admitter{}
 	admitterMock.On("Admit", mock.Anything).Return(v1beta1.AdmissionResponse{}, nil)
-	sut := NewServer(admitterMock)
+	sut := Handler{admitter: admitterMock}
 
 	request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
 	recorder := httptest.NewRecorder()
 
-	sut.ServerHTTP(recorder, request)
+	sut.Mutate(recorder, request)
 
 	admitterMock.AssertNumberOfCalls(t, "Admit", 1)
 }
@@ -122,12 +115,12 @@ func TestFailIfAdmitterFails(t *testing.T) {
 	admitterStub.
 		On("Admit", mock.Anything).
 		Return(v1beta1.AdmissionResponse{}, errors.New("admission failed"))
-	sut := NewServer(admitterStub)
+	sut := Handler{admitter: admitterStub}
 
 	request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
 	recorder := httptest.NewRecorder()
 
-	sut.ServerHTTP(recorder, request)
+	sut.Mutate(recorder, request)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
 }
@@ -138,12 +131,12 @@ func TestSucceedIfAdmitterSucceeds(t *testing.T) {
 	admitterStub.
 		On("Admit", mock.Anything).
 		Return(admissionResponse, nil)
-	sut := NewServer(admitterStub)
+	sut := Handler{admitterStub}
 
 	request := httptest.NewRequest(http.MethodPost, "/mutate", strings.NewReader(validAdmissionReview))
 	recorder := httptest.NewRecorder()
 
-	sut.ServerHTTP(recorder, request)
+	sut.Mutate(recorder, request)
 
 	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
 
