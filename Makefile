@@ -33,4 +33,4 @@ tests-e2e:
 # Builds a docker image
 .PHONY: docker
 docker:
-		docker build -t voltron/injector:latest .
+		docker build -t voltron/injector:latest -f ./deploy/injector/Dockerfile .
