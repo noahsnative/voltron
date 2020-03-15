@@ -17,13 +17,14 @@ function create_kind_cluster()
   running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
   if [ "${running}" != 'true' ]; then
     docker run \
-      -d --restart=always -p "${reg_port}:15000" --name "${reg_name}" \
+      -d --restart=always -p "${reg_port}:5000" --name "${reg_name}" \
       registry:2
   fi
   reg_ip="$(docker inspect -f '{{.NetworkSettings.IPAddress}}' "${reg_name}")"
 
-  docker tag voltron/injector:latest localhost:15000/voltron/injector:latest
-  docker push localhost:15000/voltron/injector:latest
+  echo "Retagging the image and pushing to the local registry"
+  docker tag voltron/injector:latest localhost:5000/voltron/injector:latest
+  docker push localhost:5000/voltron/injector:latest
 
   cat <<EOF | kind create cluster --image "kindest/node:v1.17.0"  --config=-
 kind: Cluster
