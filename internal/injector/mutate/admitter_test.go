@@ -83,11 +83,9 @@ func TestValidAdmissionRequestAddsInitContainer(t *testing.T) {
 			sut := NewAdmitter()
 			response, _ := sut.Admit(request)
 
-			patchBytes := response.Patch
-			var actualPatches []patchOperation
-			err := json.Unmarshal(patchBytes, &actualPatches)
-			assert.NoError(t, err)
-			assert.True(t, assert.ObjectsAreEqual(test.expectedPatches, actualPatches))
+			actual := response.Patch
+			expected, _ := json.Marshal(test.expectedPatches)
+			assert.JSONEq(t, string(actual), string(expected))
 		})
 	}
 }
