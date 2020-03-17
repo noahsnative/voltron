@@ -19,12 +19,18 @@ $(PLATFORMS):
 lint:
 		./bin/golangci-lint run ./...
 
-# Runs all of the tests
-.PHONY: test
-test:
+# Runs unit tests
+.PHONY: tests-unit
+tests-unit:
 		go test -v ./...
+
+
+# Runs end to end tests
+.PHONY: tests-e2e
+tests-e2e:
+		./test/e2e/run.sh
 
 # Builds a docker image
 .PHONY: docker
 docker:
-		docker build -t voltron/injector:latest .
+		docker build -t voltron/injector:latest -f ./deploy/injector/Dockerfile .
