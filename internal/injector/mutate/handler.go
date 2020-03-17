@@ -17,7 +17,7 @@ type Handler struct {
 
 func New() *Handler {
 	return &Handler{
-		admitter: noOpAdmitter{},
+		admitter: mutator{},
 	}
 }
 

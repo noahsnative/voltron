@@ -9,6 +9,6 @@ require (
 	github.com/stretchr/testify v1.5.1
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	k8s.io/api v0.17.3
-	k8s.io/apimachinery v0.17.4 // indirect
+	k8s.io/apimachinery v0.17.4
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
