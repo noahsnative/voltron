@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
 // Admitter validates an admission request and admits it, possibly mutating
@@ -88,7 +88,11 @@ func patchInitContainers(pod *corev1.Pod) patchOperation {
 
 //NewAdmitter returns a Admitter
 func NewAdmitter() Admitter {
+	scheme := runtime.NewScheme()
+	corev1.AddToScheme(scheme)
+	codecs := serializer.NewCodecFactory(scheme)
+
 	return mutator{
-		decoder: scheme.Codecs.UniversalDeserializer(),
+		decoder: codecs.UniversalDeserializer(),
 	}
 }
