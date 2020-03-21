@@ -86,7 +86,27 @@ func TestValidAdmissionRequestAddsInitContainer(t *testing.T) {
 			summary: "One existing init container",
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
-					InitContainers: []corev1.Container{nginxContainer},
+					InitContainers: []corev1.Container{
+						corev1.Container{Image: "foo:latest"},
+					},
+				},
+			},
+			expectedPatches: []patchOperation{
+				patchOperation{
+					Op:    "add",
+					Path:  "/spec/initContainers/-",
+					Value: nginxContainer,
+				},
+			},
+		},
+		{
+			summary: "Multiple existing containers",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						corev1.Container{Image: "foo:latest"},
+						corev1.Container{Image: "bar:latest"},
+					},
 				},
 			},
 			expectedPatches: []patchOperation{
