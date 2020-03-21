@@ -21,21 +21,31 @@ func TestInvalidKindInAdmissionRequest(t *testing.T) {
 }
 
 func TestValidKindInAdmissionRequest(t *testing.T) {
+	var pod corev1.Pod
+	podBytes, _ := json.Marshal(ensureValid(pod))
+
 	request := v1beta1.AdmissionRequest{
-		Object: runtime.RawExtension{Raw: []byte{}},
+		Object: runtime.RawExtension{Raw: podBytes},
 		Kind:   metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
 	}
+
 	sut := NewAdmitter()
 	_, err := sut.Admit(request)
 	assert.NoError(t, err)
 }
 
 func TestInvalidObjectInAdmissionRequest(t *testing.T) {
+	var pv corev1.PersistentVolume
+	pv.Kind = "PersistentVolume"
+	pv.APIVersion = "v1"
+	pvBytes, _ := json.Marshal(pv)
+
 	tests := []struct {
 		summary string
 		object  []byte
 	}{
 		{summary: "Nil object", object: nil},
+		{summary: "Not a pod", object: pvBytes},
 	}
 
 	for _, test := range tests {
@@ -70,22 +80,46 @@ func TestValidAdmissionRequestAddsInitContainer(t *testing.T) {
 					Path:  "/spec/initContainers",
 					Value: nginxContainer,
 				},
-			}},
+			},
+		},
+		{
+			summary: "One existing init container",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{nginxContainer},
+				},
+			},
+			expectedPatches: []patchOperation{
+				patchOperation{
+					Op:    "add",
+					Path:  "/spec/initContainers/-",
+					Value: nginxContainer,
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.summary, func(t *testing.T) {
-			podBytes, _ := json.Marshal(test.pod)
+			podBytes, _ := json.Marshal(ensureValid(test.pod))
 			request := v1beta1.AdmissionRequest{
 				Object: runtime.RawExtension{Raw: podBytes},
 				Kind:   metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
 			}
+
 			sut := NewAdmitter()
-			response, _ := sut.Admit(request)
+			response, err := sut.Admit(request)
+			assert.NoError(t, err)
 
 			actual := response.Patch
 			expected, _ := json.Marshal(test.expectedPatches)
 			assert.JSONEq(t, string(actual), string(expected))
 		})
 	}
+}
+
+func ensureValid(pod corev1.Pod) corev1.Pod {
+	pod.Kind = "Pod"
+	pod.APIVersion = "v1"
+	return pod
 }
