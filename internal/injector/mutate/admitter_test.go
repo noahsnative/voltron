@@ -17,7 +17,7 @@ func TestFailsInvalidAdmissionRequestKind(t *testing.T) {
 	request := v1beta1.AdmissionRequest{
 		Kind: metav1.GroupVersionKind{Group: "autoscaling", Version: "v1", Kind: "Scale"},
 	}
-	sut := NewAdmitter()
+	sut, _ := NewAdmitter()
 	_, err := sut.Admit(request)
 	assert.Error(t, err)
 }
@@ -28,14 +28,14 @@ func TestSucceedsIfValidAdmissionRequestKind(t *testing.T) {
 			Containers: []corev1.Container{{Image: "foo:latest"}},
 		},
 	}
-	podBytes, _ := json.Marshal(ensureKind(pod))
+	podBytes, _ := json.Marshal(ensureKind(&pod))
 
 	request := v1beta1.AdmissionRequest{
 		Object: runtime.RawExtension{Raw: podBytes},
 		Kind:   metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
 	}
 
-	sut := NewAdmitter()
+	sut, _ := NewAdmitter()
 	_, err := sut.Admit(request)
 	assert.NoError(t, err)
 }
@@ -55,12 +55,13 @@ func TestFailsIfInvalidAdmissionRequestObject(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
 		t.Run(test.summary, func(t *testing.T) {
 			request := v1beta1.AdmissionRequest{
 				Object: runtime.RawExtension{Raw: test.object},
 				Kind:   metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
 			}
-			sut := NewAdmitter()
+			sut, _ := NewAdmitter()
 			_, err := sut.Admit(request)
 			assert.Error(t, err)
 		})
@@ -78,7 +79,7 @@ func TestFailsIfPodHasNoContainers(t *testing.T) {
 		Kind:   metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
 	}
 
-	sut := NewAdmitter()
+	sut, _ := NewAdmitter()
 	_, err := sut.Admit(request)
 	assert.Error(t, err)
 }
@@ -192,8 +193,8 @@ func TestReturnsJSONPatch(t *testing.T) {
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						corev1.Container{Image: "foo:latest", VolumeMounts: []corev1.VolumeMount{{Name: "foo"}}},
-						corev1.Container{Image: "bar:latest", VolumeMounts: []corev1.VolumeMount{{Name: "bar"}}},
+						{Image: "foo:latest", VolumeMounts: []corev1.VolumeMount{{Name: "foo"}}},
+						{Image: "bar:latest", VolumeMounts: []corev1.VolumeMount{{Name: "bar"}}},
 					},
 					Volumes: []corev1.Volume{{Name: "foo"}, {Name: "bar"}},
 				},
@@ -211,8 +212,8 @@ func TestReturnsJSONPatch(t *testing.T) {
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						corev1.Container{Image: "foo:latest"},
-						corev1.Container{Image: "bar:latest"},
+						{Image: "foo:latest"},
+						{Image: "bar:latest"},
 					},
 					Volumes: []corev1.Volume{{Name: "foo"}, {Name: "bar"}},
 				},
@@ -230,8 +231,8 @@ func TestReturnsJSONPatch(t *testing.T) {
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						corev1.Container{Image: "foo:latest", Command: []string{"sh"}},
-						corev1.Container{Image: "bar:latest"},
+						{Image: "foo:latest", Command: []string{"sh"}},
+						{Image: "bar:latest"},
 					},
 					Volumes: []corev1.Volume{{Name: "foo"}, {Name: "bar"}},
 				},
@@ -247,14 +248,15 @@ func TestReturnsJSONPatch(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
 		t.Run(test.summary, func(t *testing.T) {
-			podBytes, _ := json.Marshal(ensureKind(test.pod))
+			podBytes, _ := json.Marshal(ensureKind(&test.pod))
 			request := v1beta1.AdmissionRequest{
 				Object: runtime.RawExtension{Raw: podBytes},
 				Kind:   metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
 			}
 
-			sut := NewAdmitter()
+			sut, _ := NewAdmitter()
 			response, err := sut.Admit(request)
 			assert.NoError(t, err)
 
@@ -266,7 +268,7 @@ func TestReturnsJSONPatch(t *testing.T) {
 	}
 }
 
-func ensureKind(pod corev1.Pod) corev1.Pod {
+func ensureKind(pod *corev1.Pod) *corev1.Pod {
 	pod.Kind = "Pod"
 	pod.APIVersion = "v1"
 	return pod

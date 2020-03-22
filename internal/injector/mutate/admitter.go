@@ -118,13 +118,16 @@ func createJSONPatch(originalPodJSON []byte, mutated *corev1.Pod) ([]byte, error
 	return patchBytes, nil
 }
 
-//NewAdmitter returns a Admitter
-func NewAdmitter() Admitter {
+// NewAdmitter returns a Admitter
+func NewAdmitter() (Admitter, error) {
 	scheme := runtime.NewScheme()
-	corev1.AddToScheme(scheme)
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+
 	codecs := serializer.NewCodecFactory(scheme)
 
 	return mutator{
 		decoder: codecs.UniversalDeserializer(),
-	}
+	}, nil
 }

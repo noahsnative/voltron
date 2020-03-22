@@ -34,7 +34,11 @@ func run() error {
 	}
 
 	mux := http.NewServeMux()
-	handler := mutate.New()
+	handler, err := mutate.New()
+	if err != nil {
+		return err
+	}
+
 	mux.HandleFunc("/mutate", handler.Mutate)
 	s := server.New(mux, server.WithPort(*port), server.WithTLSCertificate(&cert))
 	fmt.Printf("Listening on %d\n", *port)

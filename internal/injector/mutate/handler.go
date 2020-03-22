@@ -15,10 +15,15 @@ type Handler struct {
 	admitter Admitter
 }
 
-func New() *Handler {
-	return &Handler{
-		admitter: mutator{},
+func New() (*Handler, error) {
+	mutator, err := NewAdmitter()
+	if err != nil {
+		return nil, err
 	}
+
+	return &Handler{
+		admitter: mutator,
+	}, nil
 }
 
 func (h *Handler) Mutate(w http.ResponseWriter, r *http.Request) {
