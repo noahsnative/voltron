@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 
 	"github.com/appscode/jsonpatch"
 	"k8s.io/api/admission/v1beta1"
@@ -24,6 +25,12 @@ type mutator struct {
 
 var (
 	expectedKind = metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"}
+
+	injectorBinName        = "injector"
+	injectorDir            = "/bin/voltron"
+	injectorContainerName  = "nginx"
+	injectorContainerImage = "nginx:latest"
+	injectorVolumeName     = "voltron-env"
 )
 
 func (m mutator) Admit(request v1beta1.AdmissionRequest) (v1beta1.AdmissionResponse, error) {
@@ -34,11 +41,10 @@ func (m mutator) Admit(request v1beta1.AdmissionRequest) (v1beta1.AdmissionRespo
 		return response, err
 	}
 
-	if len(pod.Spec.Containers) == 0 {
-		return response, errors.New("can not admit a pod without containers")
+	err = mutate(pod)
+	if err != nil {
+		return response, err
 	}
-
-	mutate(pod)
 
 	patchBytes, err := createJSONPatch(request.Object.Raw, pod)
 	if err != nil {
@@ -67,13 +73,30 @@ func (m mutator) extractPod(request *v1beta1.AdmissionRequest) (*corev1.Pod, err
 	return pod, nil
 }
 
-func mutate(pod *corev1.Pod) {
-	secretInjectorContainer := corev1.Container{Name: "nginx", Image: "nginx:latest"}
-	pod.Spec.InitContainers = append(pod.Spec.InitContainers, secretInjectorContainer)
+func mutate(pod *corev1.Pod) error {
+	if len(pod.Spec.Containers) == 0 {
+		return errors.New("can not admit a pod without containers")
+	}
 
-	sharedVolume := corev1.Volume{Name: "voltron-env"}
+	sharedVolume := corev1.Volume{Name: injectorVolumeName}
 	sharedVolume.EmptyDir = &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumMemory}
 	pod.Spec.Volumes = append(pod.Spec.Volumes, sharedVolume)
+
+	sharedVolumeMount := corev1.VolumeMount{
+		Name:      sharedVolume.Name,
+		MountPath: injectorDir,
+	}
+	injectorContainer := corev1.Container{
+		Name:         injectorContainerName,
+		Image:        injectorContainerImage,
+		VolumeMounts: []corev1.VolumeMount{sharedVolumeMount}}
+	pod.Spec.InitContainers = append(pod.Spec.InitContainers, injectorContainer)
+
+	mainContainer := &pod.Spec.Containers[0]
+	mainContainer.VolumeMounts = append(mainContainer.VolumeMounts, sharedVolumeMount)
+	mainContainer.Command = []string{path.Join(injectorDir, injectorBinName)}
+
+	return nil
 }
 
 func createJSONPatch(originalPodJSON []byte, mutated *corev1.Pod) ([]byte, error) {

@@ -2,7 +2,9 @@ package mutate
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/admission/v1beta1"
@@ -21,8 +23,12 @@ func TestFailsInvalidAdmissionRequestKind(t *testing.T) {
 }
 
 func TestSucceedsIfValidAdmissionRequestKind(t *testing.T) {
-	var pod corev1.Pod
-	podBytes, _ := json.Marshal(ensureValid(pod))
+	pod := corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Image: "foo:latest"}},
+		},
+	}
+	podBytes, _ := json.Marshal(ensureKind(pod))
 
 	request := v1beta1.AdmissionRequest{
 		Object: runtime.RawExtension{Raw: podBytes},
@@ -84,53 +90,69 @@ func TestReturnsJSONPatch(t *testing.T) {
 		expectedPatches []string
 	}{
 		{
-			summary: "No existing init containers",
-			pod:     corev1.Pod{},
-			expectedPatches: []string{
-				`{"op":"add","path":"/spec/initContainers","value":[{"image":"nginx:latest","name":"nginx","resources":{}}]}`,
-			},
-		},
-		{
-			summary: "One existing init container",
+			summary: "Patches init containers if pod had no init containers",
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
-					InitContainers: []corev1.Container{
-						corev1.Container{Image: "foo:latest"},
-					},
+					Containers: []corev1.Container{{Image: "foo:latest"}},
 				},
 			},
 			expectedPatches: []string{
-				`{"op":"add","path":"/spec/initContainers/1","value":{"image":"nginx:latest","name":"nginx","resources":{}}}`,
+				`{
+					"op":"add",
+					"path":"/spec/initContainers",
+					"value":[{"image":"nginx:latest","name":"nginx","resources":{},"volumeMounts":[{"mountPath":"/bin/voltron","name":"voltron-env"}]}]
+				}`,
 			},
 		},
 		{
-			summary: "Multiple existing init containers",
+			summary: "Patches init containers if pod had a signle init container",
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
-					InitContainers: []corev1.Container{
-						corev1.Container{Image: "foo:latest"},
-						corev1.Container{Image: "bar:latest"},
-					},
+					Containers:     []corev1.Container{{Image: "foo:latest"}},
+					InitContainers: []corev1.Container{{Image: "foo:latest"}},
 				},
 			},
 			expectedPatches: []string{
-				`{"op":"add","path":"/spec/initContainers/2","value":{"image":"nginx:latest","name":"nginx","resources":{}}}`,
+				`{
+					"op":"add",
+					"path":"/spec/initContainers/1",
+					"value":{"image":"nginx:latest","name":"nginx","resources":{},"volumeMounts":[{"mountPath":"/bin/voltron","name":"voltron-env"}]}
+				}`,
 			},
 		},
 		{
-			summary: "No existing volumes",
-			pod:     corev1.Pod{},
+			summary: "Patches init containers if pod had multiple init containers",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers:     []corev1.Container{{Image: "foo:latest"}},
+					InitContainers: []corev1.Container{{Image: "foo:latest"}, {Image: "bar:latest"}},
+				},
+			},
+			expectedPatches: []string{
+				`{
+					"op":"add",
+					"path":"/spec/initContainers/2",
+					"value":{"image":"nginx:latest","name":"nginx","resources":{},"volumeMounts":[{"mountPath":"/bin/voltron","name":"voltron-env"}]}
+				}`,
+			},
+		},
+		{
+			summary: "Patches volumes if pod had no volumes",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "foo:latest"}},
+				},
+			},
 			expectedPatches: []string{
 				`{"op":"add","path":"/spec/volumes","value":[{"emptyDir":{"medium":"Memory"},"name":"voltron-env"}]}`,
 			},
 		},
 		{
-			summary: "One existing volume",
+			summary: "Patches volumes if pod had a signle volume",
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						corev1.Volume{Name: "foo"},
-					},
+					Containers: []corev1.Container{{Image: "foo:latest"}},
+					Volumes:    []corev1.Volume{{Name: "foo"}},
 				},
 			},
 			expectedPatches: []string{
@@ -138,24 +160,95 @@ func TestReturnsJSONPatch(t *testing.T) {
 			},
 		},
 		{
-			summary: "Multiple existing volumes",
+			summary: "Patches volumes if pod had multiple volumes",
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						corev1.Volume{Name: "foo"},
-						corev1.Volume{Name: "bar"},
-					},
+					Containers: []corev1.Container{{Image: "foo:latest"}},
+					Volumes:    []corev1.Volume{{Name: "foo"}, {Name: "bar"}},
 				},
 			},
 			expectedPatches: []string{
 				`{"op":"add","path":"/spec/volumes/2","value":{"emptyDir":{"medium":"Memory"},"name":"voltron-env"}}`,
 			},
 		},
+		{
+			summary: "Patches first container's volume mounts if it had no volume mounts",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "foo:latest"}, {Image: "bar:latest"}},
+					Volumes:    []corev1.Volume{{Name: "foo"}, {Name: "bar"}},
+				},
+			},
+			expectedPatches: []string{
+				`{
+					"op":"add",
+					"path":"/spec/containers/0/volumeMounts",
+					"value":[{"mountPath":"/bin/voltron","name":"voltron-env"}]
+				}`,
+			},
+		},
+		{
+			summary: "Patches first container's volume mounts if it had volume mounts",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						corev1.Container{Image: "foo:latest", VolumeMounts: []corev1.VolumeMount{{Name: "foo"}}},
+						corev1.Container{Image: "bar:latest", VolumeMounts: []corev1.VolumeMount{{Name: "bar"}}},
+					},
+					Volumes: []corev1.Volume{{Name: "foo"}, {Name: "bar"}},
+				},
+			},
+			expectedPatches: []string{
+				`{
+					"op":"add",
+					"path":"/spec/containers/0/volumeMounts/1",
+					"value":{"mountPath":"/bin/voltron","name":"voltron-env"}
+				}`,
+			},
+		},
+		{
+			summary: "Patches first container's command if it had no command",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						corev1.Container{Image: "foo:latest"},
+						corev1.Container{Image: "bar:latest"},
+					},
+					Volumes: []corev1.Volume{{Name: "foo"}, {Name: "bar"}},
+				},
+			},
+			expectedPatches: []string{
+				`{
+					"op":"add",
+					"path":"/spec/containers/0/command",
+					"value":["/bin/voltron/injector"]
+				}`,
+			},
+		},
+		{
+			summary: "Patches first container's command if it had a command",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						corev1.Container{Image: "foo:latest", Command: []string{"sh"}},
+						corev1.Container{Image: "bar:latest"},
+					},
+					Volumes: []corev1.Volume{{Name: "foo"}, {Name: "bar"}},
+				},
+			},
+			expectedPatches: []string{
+				`{
+					"op":"replace",
+					"path":"/spec/containers/0/command/0",
+					"value":"/bin/voltron/injector"
+				}`,
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.summary, func(t *testing.T) {
-			podBytes, _ := json.Marshal(ensureValid(test.pod))
+			podBytes, _ := json.Marshal(ensureKind(test.pod))
 			request := v1beta1.AdmissionRequest{
 				Object: runtime.RawExtension{Raw: podBytes},
 				Kind:   metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
@@ -167,15 +260,24 @@ func TestReturnsJSONPatch(t *testing.T) {
 
 			actualPatches := string(response.Patch)
 			for _, patch := range test.expectedPatches {
-				assert.Contains(t, actualPatches, patch)
+				assert.Contains(t, actualPatches, compress(patch))
 			}
 		})
 	}
 }
 
-func ensureValid(pod corev1.Pod) corev1.Pod {
+func ensureKind(pod corev1.Pod) corev1.Pod {
 	pod.Kind = "Pod"
 	pod.APIVersion = "v1"
-	pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{Image: "foo:latest"})
 	return pod
+}
+
+func compress(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+
+		return r
+	}, s)
 }
