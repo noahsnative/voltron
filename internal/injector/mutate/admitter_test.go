@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestInvalidKindInAdmissionRequest(t *testing.T) {
+func TestFailsInvalidAdmissionRequestKind(t *testing.T) {
 	request := v1beta1.AdmissionRequest{
 		Kind: metav1.GroupVersionKind{Group: "autoscaling", Version: "v1", Kind: "Scale"},
 	}
@@ -20,7 +20,7 @@ func TestInvalidKindInAdmissionRequest(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestValidKindInAdmissionRequest(t *testing.T) {
+func TestSucceedsIfValidAdmissionRequestKind(t *testing.T) {
 	var pod corev1.Pod
 	podBytes, _ := json.Marshal(ensureValid(pod))
 
@@ -34,7 +34,7 @@ func TestValidKindInAdmissionRequest(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestInvalidObjectInAdmissionRequest(t *testing.T) {
+func TestFailsIfInvalidAdmissionRequestObject(t *testing.T) {
 	var pv corev1.PersistentVolume
 	pv.Kind = "PersistentVolume"
 	pv.APIVersion = "v1"
@@ -61,25 +61,33 @@ func TestInvalidObjectInAdmissionRequest(t *testing.T) {
 	}
 }
 
-func TestValidAdmissionRequestAddsInitContainer(t *testing.T) {
-	nginxContainer := corev1.Container{
-		Image: "nginx:latest",
+func TestFailsIfPodHasNoContainers(t *testing.T) {
+	var pod corev1.Pod
+	pod.Kind = "Pod"
+	pod.APIVersion = "v1"
+	podBytes, _ := json.Marshal(pod)
+
+	request := v1beta1.AdmissionRequest{
+		Object: runtime.RawExtension{Raw: podBytes},
+		Kind:   metav1.GroupVersionKind{Group: "core", Version: "v1", Kind: "Pod"},
 	}
 
+	sut := NewAdmitter()
+	_, err := sut.Admit(request)
+	assert.Error(t, err)
+}
+
+func TestPatchesInitContainers(t *testing.T) {
 	tests := []struct {
 		summary         string
 		pod             corev1.Pod
-		expectedPatches []patchOperation
+		expectedPatches []string
 	}{
 		{
 			summary: "No existing init containers",
 			pod:     corev1.Pod{},
-			expectedPatches: []patchOperation{
-				patchOperation{
-					Op:    "add",
-					Path:  "/spec/initContainers",
-					Value: nginxContainer,
-				},
+			expectedPatches: []string{
+				`{"op":"add","path":"/spec/initContainers","value":[{"image":"nginx:latest","name":"nginx","resources":{}}]}`,
 			},
 		},
 		{
@@ -91,16 +99,12 @@ func TestValidAdmissionRequestAddsInitContainer(t *testing.T) {
 					},
 				},
 			},
-			expectedPatches: []patchOperation{
-				patchOperation{
-					Op:    "add",
-					Path:  "/spec/initContainers/-",
-					Value: nginxContainer,
-				},
+			expectedPatches: []string{
+				`{"op":"add","path":"/spec/initContainers/1","value":{"image":"nginx:latest","name":"nginx","resources":{}}}`,
 			},
 		},
 		{
-			summary: "Multiple existing containers",
+			summary: "Multiple existing init containers",
 			pod: corev1.Pod{
 				Spec: corev1.PodSpec{
 					InitContainers: []corev1.Container{
@@ -109,12 +113,8 @@ func TestValidAdmissionRequestAddsInitContainer(t *testing.T) {
 					},
 				},
 			},
-			expectedPatches: []patchOperation{
-				patchOperation{
-					Op:    "add",
-					Path:  "/spec/initContainers/-",
-					Value: nginxContainer,
-				},
+			expectedPatches: []string{
+				`{"op":"add","path":"/spec/initContainers/2","value":{"image":"nginx:latest","name":"nginx","resources":{}}}`,
 			},
 		},
 	}
@@ -131,9 +131,10 @@ func TestValidAdmissionRequestAddsInitContainer(t *testing.T) {
 			response, err := sut.Admit(request)
 			assert.NoError(t, err)
 
-			actual := response.Patch
-			expected, _ := json.Marshal(test.expectedPatches)
-			assert.JSONEq(t, string(actual), string(expected))
+			actualPatches := string(response.Patch)
+			for _, patch := range test.expectedPatches {
+				assert.Contains(t, actualPatches, patch)
+			}
 		})
 	}
 }
@@ -141,5 +142,6 @@ func TestValidAdmissionRequestAddsInitContainer(t *testing.T) {
 func ensureValid(pod corev1.Pod) corev1.Pod {
 	pod.Kind = "Pod"
 	pod.APIVersion = "v1"
+	pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{Image: "foo:latest"})
 	return pod
 }

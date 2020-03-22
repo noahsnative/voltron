@@ -3,6 +3,7 @@ module github.com/noahsnative/voltron
 go 1.13
 
 require (
+	github.com/appscode/jsonpatch v1.0.1
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
