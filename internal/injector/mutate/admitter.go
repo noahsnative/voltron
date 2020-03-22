@@ -68,12 +68,12 @@ func (m mutator) extractPod(request *v1beta1.AdmissionRequest) (*corev1.Pod, err
 }
 
 func mutate(pod *corev1.Pod) {
-	nginxContainer := corev1.Container{
-		Name:  "nginx",
-		Image: "nginx:latest",
-	}
+	secretInjectorContainer := corev1.Container{Name: "nginx", Image: "nginx:latest"}
+	pod.Spec.InitContainers = append(pod.Spec.InitContainers, secretInjectorContainer)
 
-	pod.Spec.InitContainers = append(pod.Spec.InitContainers, nginxContainer)
+	sharedVolume := corev1.Volume{Name: "voltron-env"}
+	sharedVolume.EmptyDir = &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumMemory}
+	pod.Spec.Volumes = append(pod.Spec.Volumes, sharedVolume)
 }
 
 func createJSONPatch(originalPodJSON []byte, mutated *corev1.Pod) ([]byte, error) {

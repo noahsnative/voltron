@@ -77,7 +77,7 @@ func TestFailsIfPodHasNoContainers(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestPatchesInitContainers(t *testing.T) {
+func TestReturnsJSONPatch(t *testing.T) {
 	tests := []struct {
 		summary         string
 		pod             corev1.Pod
@@ -115,6 +115,40 @@ func TestPatchesInitContainers(t *testing.T) {
 			},
 			expectedPatches: []string{
 				`{"op":"add","path":"/spec/initContainers/2","value":{"image":"nginx:latest","name":"nginx","resources":{}}}`,
+			},
+		},
+		{
+			summary: "No existing volumes",
+			pod:     corev1.Pod{},
+			expectedPatches: []string{
+				`{"op":"add","path":"/spec/volumes","value":[{"emptyDir":{"medium":"Memory"},"name":"voltron-env"}]}`,
+			},
+		},
+		{
+			summary: "One existing volume",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						corev1.Volume{Name: "foo"},
+					},
+				},
+			},
+			expectedPatches: []string{
+				`{"op":"add","path":"/spec/volumes/1","value":{"emptyDir":{"medium":"Memory"},"name":"voltron-env"}}`,
+			},
+		},
+		{
+			summary: "Multiple existing volumes",
+			pod: corev1.Pod{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						corev1.Volume{Name: "foo"},
+						corev1.Volume{Name: "bar"},
+					},
+				},
+			},
+			expectedPatches: []string{
+				`{"op":"add","path":"/spec/volumes/2","value":{"emptyDir":{"medium":"Memory"},"name":"voltron-env"}}`,
 			},
 		},
 	}
